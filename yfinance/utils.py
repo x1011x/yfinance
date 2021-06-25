@@ -42,7 +42,7 @@ def empty_df(index=[]):
     return empty
 
 
-def get_json(url, proxy=None, session=None):
+def get_json(url, proxy=None, session=None, cls=None):
     session = session or _requests
     html = session.get(url=url, proxies=proxy).text
 
@@ -55,6 +55,9 @@ def get_json(url, proxy=None, session=None):
         '(this)')[0].split(';\n}')[0].strip()
     data = _json.loads(json_str)[
         'context']['dispatcher']['stores']['QuoteSummaryStore']
+    if cls == 'fin':
+        data03 = _json.loads(json_str)['context']['dispatcher']['stores']['QuoteTimeSeriesStore']
+        data.update(data03)
 
     # return data
     new_data = _json.dumps(data).replace('{}', 'null')

@@ -158,6 +158,10 @@ class Ticker(TickerBase):
         return self.get_financials()
 
     @property
+    def annualbasiceps(self):
+        return self.get_annualbasiceps()
+
+    @property
     def quarterly_financials(self):
         return self.get_financials(freq='quarterly')
 

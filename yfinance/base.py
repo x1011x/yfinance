@@ -73,6 +73,9 @@ class TickerBase():
         self._cashflow = {
             "yearly": utils.empty_df(),
             "quarterly": utils.empty_df()}
+        self._annualbasiceps = {
+            "yearly": utils.empty_df(),
+            "quarterly": utils.empty_df()}
 
     def history(self, period="1mo", interval="1d",
                 start=None, end=None, prepost=False, actions=True,
@@ -270,6 +273,24 @@ class TickerBase():
             df.index = utils.camel2title(df.index)
             return df
 
+        def cleanup_timeseries(data):
+            df = _pd.DataFrame(data)
+            for col in df.columns:
+                df[col] = _np.where(
+                    df[col].astype(str) == '-', _np.nan, df[col])
+
+            df.set_index('asOfDate', inplace=True)
+            try:
+                df.index = _pd.to_datetime(df.index, unit='s')
+            except ValueError:
+                df.index = _pd.to_datetime(df.index)
+            df = df.T
+            df.columns.name = ''
+            df.index.name = 'Breakdown'
+
+            df.index = utils.camel2title(df.index)
+            return df
+
         # setup proxy in requests format
         if proxy is not None:
             if isinstance(proxy, dict) and "https" in proxy:
@@ -393,7 +414,9 @@ class TickerBase():
             pass
 
         # get fundamentals
-        data = utils.get_json(ticker_url+'/financials', proxy, self.session)
+        # data = utils.get_json(ticker_url+'/financials', proxy, self.session)
+        url = "{}/{}/financials".format(self._scrape_url, self.ticker)
+        data = utils.get_json(url, proxy, self.session, 'fin')
 
         # generic patterns
         for key in (
@@ -412,6 +435,16 @@ class TickerBase():
             if isinstance(data.get(item), dict):
                 try:
                     key[0]['quarterly'] = cleanup(data[item][key[2]])
+                except Exception as e:
+                    pass
+
+        for key in (
+            (self._annualbasiceps, 'timeSeries', 'annualBasicEPS'),
+        ):
+            item = key[1]
+            if isinstance(data.get(item), dict):
+                try:
+                    key[0]['yearly'] = cleanup_timeseries(data[item][key[2]])
                 except Exception as e:
                     pass
 
@@ -498,6 +531,13 @@ class TickerBase():
     def get_financials(self, proxy=None, as_dict=False, freq="yearly"):
         self._get_fundamentals(proxy=proxy)
         data = self._financials[freq]
+        if as_dict:
+            return data.to_dict()
+        return data
+
+    def get_annualbasiceps(self, proxy=None, as_dict=False, freq="yearly"):
+        self._get_fundamentals(proxy=proxy)
+        data = self._annualbasiceps[freq]
         if as_dict:
             return data.to_dict()
         return data
